@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio Defender</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 1.6 4.2 4.7v6.2c0 4.9 3.3 9.4 7.8 10.9 4.5-1.5 7.8-6 7.8-10.9V4.7L12 1.6z" />
+            <path class="logo-wave" d="M8.7 10.1h1.7v4.8H8.7zm2.5-2.4h1.7v9.6h-1.7zm2.5 1.6h1.7v6.4h-1.7z" />
+          </svg>
+        </span>
+        <h1>Audio Defender</h1>
+      </div>
+      <label class="toggle" title="Turns audio processing on or off">
+        <input id="enabled" type="checkbox" checked />
+        <span class="toggle-ui"></span>
+      </label>
+    </header>
+
+    <p id="reloadHint" class="hint hidden">Reload this tab once so audio processing can attach.</p>
+    <p id="siteHint" class="hint hidden">Open Twitch, YouTube, Kick, or X to process playback.</p>
+    <p id="conflictHint" class="warn hidden">Another extension already processes this video's audio. Turn that one off, then reload this tab.</p>
+
+    <div class="meter-wrap">
+      <div class="meter" aria-hidden="true">
+        <span id="meterFill" class="meter-fill"></span>
+        <span id="meterGr" class="meter-gr"></span>
+      </div>
+      <div class="meter-legend">
+        <span>Output</span>
+        <span id="meterReadout"></span>
+      </div>
+    </div>
+
+    <div class="row tight">
+      <span>Boost</span>
+      <input id="boost" class="slider" type="range" min="25" max="600" step="5" value="100" />
+      <strong id="boostValue">100%</strong>
+    </div>
+
+    <label class="row switch-row tight">
+      <span>Mono</span>
+      <span class="toggle tiny">
+        <input id="mono" type="checkbox" />
+        <span class="toggle-ui"></span>
+      </span>
+    </label>
+
+    <section class="block">
+      <h2>Presets</h2>
+      <div id="presets" class="chips"></div>
+    </section>
+
+    <section class="block">
+      <h2>Applies to</h2>
+      <div class="segmented" role="tablist">
+        <button id="scopeDefault" class="seg active" type="button">Default</button>
+        <button id="scopeOverwrite" class="seg" type="button" disabled>Overwrite</button>
+      </div>
+      <p id="scopeHelp" class="help">Default settings apply everywhere. Turn on Overwrite to save a setup for this channel only.</p>
+    </section>
+
+    <section class="stack">
+      <div class="module">
+        <button id="compressorTogglePanel" class="module-head" type="button">
+          <span>Compressor</span>
+          <span class="module-right">
+            <label class="toggle tiny" onclick="event.stopPropagation()">
+              <input id="compressorEnabled" type="checkbox" checked />
+              <span class="toggle-ui"></span>
+            </label>
+            <span class="chevron">›</span>
+          </span>
+        </button>
+        <div id="compressorPanel" class="panel hidden">
+          <label class="control">
+            <span>Strength <em id="strengthValue">50%</em></span>
+            <input id="strength" type="range" min="0" max="100" step="1" value="50" />
+          </label>
+          <p class="adv-label">Advanced</p>
+          <label class="control"><span>Threshold <em id="thresholdValue">-28 dB</em></span><input id="threshold" type="range" min="-60" max="0" step="1" /></label>
+          <label class="control"><span>Ratio <em id="ratioValue">4 : 1</em></span><input id="ratio" type="range" min="1" max="20" step="0.5" /></label>
+          <label class="control"><span>Attack <em id="attackValue">25 ms</em></span><input id="attack" type="range" min="0" max="200" step="1" /></label>
+          <label class="control"><span>Release <em id="releaseValue">400 ms</em></span><input id="release" type="range" min="10" max="1000" step="10" /></label>
+          <label class="control"><span>Limiter threshold <em id="limiterThresholdValue">-10 dB</em></span><input id="limiterThreshold" type="range" min="-30" max="0" step="1" /></label>
+          <button id="resetCompressor" class="reset-btn" type="button">Reset</button>
+        </div>
+      </div>
+
+      <div class="module">
+        <button id="equalizerTogglePanel" class="module-head" type="button">
+          <span>Equalizer</span>
+          <span class="module-right">
+            <label class="toggle tiny" onclick="event.stopPropagation()">
+              <input id="equalizerEnabled" type="checkbox" />
+              <span class="toggle-ui"></span>
+            </label>
+            <span class="chevron">›</span>
+          </span>
+        </button>
+        <div id="equalizerPanel" class="panel hidden">
+          <div id="eqBands" class="eq"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="save-row">
+      <input id="presetName" type="text" maxlength="32" placeholder="New preset name" />
+      <button id="savePreset" type="button">Save</button>
+    </section>
+
+    <p class="footer">Your volume slider keeps working as usual.</p>
+
+    <script src="shared/presets.js"></script>
+    <script src="shared/channel.js"></script>
+    <script src="shared/storage.js"></script>
+    <script src="shared/panel.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "audio-defender",
+  "private": true,
+  "description": "Tests for the Audio Defender Chrome extension",
+  "scripts": {
+    "test": "node --test --test-force-exit test/*.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}
