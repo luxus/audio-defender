@@ -61,6 +61,8 @@ AD.bindPanel = function (root, options) {
     tabId: null,
     needsReload: false
   };
+  let ready = false;
+  let lastSaved = "";
 
   function shell() {
     return root.body || root.querySelector(".ad-root") || root;
@@ -232,32 +234,58 @@ AD.bindPanel = function (root, options) {
     return AD.parseChannel(href, doc);
   }
 
+  function sameOverrideChannel(a, b) {
+    const keysA = AD.overrideKeys ? AD.overrideKeys(a) : [AD.overrideKey(a)];
+    const keysB = AD.overrideKeys ? AD.overrideKeys(b) : [AD.overrideKey(b)];
+    if (!keysA.length || !keysB.length) return false;
+    return keysA.some((key) => keysB.indexOf(key) !== -1);
+  }
+
   function refreshChannel() {
+    if (!ready) return false;
     const channel = currentChannel();
     const nextKey = AD.overrideKey(channel);
     const prevKey = AD.overrideKey(ui.channel);
     const nextPlace = AD.overridePlace(channel);
     const prevPlace = AD.overridePlace(ui.channel);
-    if (nextKey === prevKey) {
+    if (!nextKey) return false;
+    if (nextKey === prevKey || sameOverrideChannel(channel, ui.channel)) {
       ui.channel = channel;
       if (nextPlace !== prevPlace) renderScopeHelp();
+      return false;
+    }
+    if (!prevKey) {
+      ui.channel = channel;
+      applyResolved();
+      syncControls();
       return false;
     }
     flushToState();
     ui.channel = channel;
     applyResolved();
     syncControls();
-    writing = true;
-    AD.saveState(ui.state).then(pingTab).catch(() => {}).finally(() => {
-      writing = false;
-    });
+    persistState();
     return true;
   }
 
   let persistTimer = 0;
   let writing = false;
 
+  function persistState() {
+    if (!ready) return;
+    const snapshot = JSON.stringify(ui.state);
+    if (snapshot === lastSaved) return;
+    writing = true;
+    AD.saveState(ui.state).then(() => {
+      lastSaved = JSON.stringify(ui.state);
+      pingTab();
+    }).catch(() => {}).finally(() => {
+      writing = false;
+    });
+  }
+
   function persist(fullState) {
+    if (!ready) return;
     flushToState();
     if (fullState) syncControls();
     else {
@@ -267,13 +295,8 @@ AD.bindPanel = function (root, options) {
       renderScopeHelp();
     }
     clearTimeout(persistTimer);
-    persistTimer = setTimeout(async () => {
-      writing = true;
-      try {
-        await AD.saveState(ui.state);
-        pingTab();
-      } catch (err) {}
-      writing = false;
+    persistTimer = setTimeout(() => {
+      persistState();
     }, fullState ? 0 : 40);
   }
 
@@ -447,6 +470,8 @@ AD.bindPanel = function (root, options) {
     }
     applyResolved();
     syncControls();
+    lastSaved = JSON.stringify(ui.state);
+    ready = true;
   }
 
   const meterTimer = setInterval(async () => {

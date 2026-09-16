@@ -1,4 +1,6 @@
 (() => {
+  if (window.__AD_OVERLAY__) return;
+  window.__AD_OVERLAY__ = true;
   const ov = AD.overlay;
 
   document.addEventListener("keydown", (event) => {
@@ -23,7 +25,7 @@
         root.style.position = "relative";
       }
       if (ov.open) ov.ensurePanel();
-      if (ov.bound) ov.bound.refreshChannel();
+      if (ov.open && ov.bound) ov.bound.refreshChannel();
       ov.updateBars();
     } catch (err) {}
   }
@@ -38,7 +40,7 @@
   ov.loadAssets().then(tick).catch(() => {});
   setInterval(tick, 800);
   setInterval(() => {
-    if (ov.bound) ov.bound.refreshChannel();
+    if (ov.bound && ov.open) ov.bound.refreshChannel();
   }, 200);
   window.addEventListener("popstate", scheduleTick);
   document.addEventListener("fullscreenchange", scheduleTick);

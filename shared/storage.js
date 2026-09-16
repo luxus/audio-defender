@@ -49,12 +49,15 @@ AD.saveState = async function (state) {
 };
 
 AD.resolveSettings = function (state, channel) {
-  var key = AD.overrideKey(channel);
-  if (key && state.channelSettings[key]) {
-    return {
-      settings: AD.normalizeSettings(state.channelSettings[key]),
-      scope: "override"
-    };
+  var keys = AD.overrideKeys(channel);
+  var i;
+  for (i = 0; i < keys.length; i++) {
+    if (state.channelSettings[keys[i]]) {
+      return {
+        settings: AD.normalizeSettings(state.channelSettings[keys[i]]),
+        scope: "override"
+      };
+    }
   }
   return {
     settings: AD.normalizeSettings(state.global),
