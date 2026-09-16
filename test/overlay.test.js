@@ -1,6 +1,6 @@
 const { test, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
-const { createDom, loadAD, runScripts, playerHtml, twitchPlayerHtml, xPlayerHtml, sleep, read } = require("./helpers");
+const { createDom, loadAD, loadOverlay, playerHtml, twitchPlayerHtml, xPlayerHtml, sleep, read } = require("./helpers");
 
 let lastWindow = null;
 
@@ -13,7 +13,7 @@ test("overlay places the shield after the YouTube volume panel", async () => {
   const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
   lastWindow = window;
   loadAD(window);
-  runScripts(window, ["overlay.js"]);
+  loadOverlay(window);
   await sleep(40);
 
   const button = document.getElementById("audio-defender-player-btn");
@@ -27,7 +27,7 @@ test("Twitch shield sits after the volume slider, not between mute and the track
   const { window, document } = createDom(twitchPlayerHtml(), "https://www.twitch.tv/lol_nemesis");
   lastWindow = window;
   loadAD(window);
-  runScripts(window, ["overlay.js"]);
+  loadOverlay(window);
   await sleep(40);
 
   const button = document.getElementById("audio-defender-player-btn");
@@ -42,7 +42,7 @@ test("Twitch fullscreen keeps the shield after the volume widget", async () => {
   const { window, document } = createDom(twitchPlayerHtml(), "https://www.twitch.tv/lol_nemesis");
   lastWindow = window;
   loadAD(window);
-  runScripts(window, ["overlay.js"]);
+  loadOverlay(window);
   await sleep(40);
 
   const player = document.querySelector('[data-a-target="video-player"]');
@@ -74,7 +74,7 @@ async function mountOverlay(href, html) {
   const ctx = createDom(html || playerHtml, href || "https://www.youtube.com/watch?v=1");
   lastWindow = ctx.window;
   loadAD(ctx.window);
-  runScripts(ctx.window, ["overlay.js"]);
+  loadOverlay(ctx.window);
   await sleep(40);
   return ctx;
 }
@@ -151,7 +151,7 @@ test("closed overlay panel can be opened again", async () => {
 });
 
 test("pointerdown on the shield does not call preventDefault", () => {
-  const overlay = read("overlay.js");
+  const overlay = read("overlay/ui.js");
   const down = overlay.match(/addEventListener\("pointerdown", \(event\) => ([^)]+)\)/);
   assert.ok(down);
   assert.equal(down[1].includes("preventDefault"), false);
@@ -162,7 +162,7 @@ test("X timeline does not pin the shield to the persistent unmute overlay", asyn
   const { window, document } = createDom(xPlayerHtml(false), "https://x.com/home");
   lastWindow = window;
   loadAD(window);
-  runScripts(window, ["overlay.js"]);
+  loadOverlay(window);
   await sleep(80);
 
   assert.equal(document.getElementById("audio-defender-player-btn"), null);
@@ -175,7 +175,7 @@ test("X control bar gets the shield next to Full screen, not next to Unmute", as
   const { window, document } = createDom(xPlayerHtml(true), "https://x.com/home");
   lastWindow = window;
   loadAD(window);
-  runScripts(window, ["overlay.js"]);
+  loadOverlay(window);
   await sleep(80);
 
   const button = document.getElementById("audio-defender-player-btn");
@@ -189,7 +189,7 @@ test("X fullscreen moves the shield into the fullscreen player's controls", asyn
   const { window, document } = createDom(xPlayerHtml(true), "https://x.com/home");
   lastWindow = window;
   loadAD(window);
-  runScripts(window, ["overlay.js"]);
+  loadOverlay(window);
   await sleep(80);
 
   const timelineBtn = document.getElementById("audio-defender-player-btn");

@@ -1,21 +1,13 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { read } = require("./helpers");
+const { read, contentScriptFiles } = require("./helpers");
 
 test("all extension scripts parse", () => {
-  const files = [
-    "shared/presets.js",
-    "shared/channel.js",
-    "shared/storage.js",
-    "shared/panel.js",
-    "page-audio.js",
-    "content.js",
-    "overlay.js",
-    "popup.js",
-    "background.js"
-  ];
+  const files = [...contentScriptFiles(), "popup.js", "background.js"];
   for (const file of files) {
     assert.doesNotThrow(() => new Function(read(file)), file + " must parse");
+    assert.doesNotMatch(read(file), /^\s*import\s/m, file + " stays a classic script");
+    assert.doesNotMatch(read(file), /^\s*export\s/m, file + " stays a classic script");
   }
 });
 
@@ -30,7 +22,7 @@ test("content script never reloads the tab on disable", () => {
 });
 
 test("YouTube button pointerdown does not preventDefault", () => {
-  const overlay = read("overlay.js");
+  const overlay = read("overlay/ui.js");
   assert.match(overlay, /pointerdown.*stopPropagation/);
   const pointerDown = overlay.split("pointerdown")[2] || overlay.split("pointerdown")[1];
   assert.ok(pointerDown, "pointerdown handler exists");

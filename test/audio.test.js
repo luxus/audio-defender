@@ -1,6 +1,6 @@
 const { test, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
-const { createDom, loadAD, runScripts, playerHtml, sleep } = require("./helpers");
+const { createDom, loadAD, loadPageAudio, runScripts, playerHtml, sleep } = require("./helpers");
 
 let lastWindow = null;
 
@@ -39,7 +39,7 @@ test("apply captures the player and wires source into the graph", async () => {
   const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=1");
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   dispatchApply(window, defaultApply(AD));
   await sleep(20);
@@ -54,7 +54,7 @@ test("disable bypasses to destination without dropping the MediaElementSource", 
   const { window, document } = createDom(playerHtml);
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   dispatchApply(window, defaultApply(AD));
   await sleep(20);
@@ -76,7 +76,7 @@ test("re-enable reconnects the same source into preGain", async () => {
   const { window, document } = createDom(playerHtml);
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   dispatchApply(window, defaultApply(AD));
   dispatchApply(window, { type: "apply", state: { enabled: false }, settings: AD.defaultSettings() });
@@ -90,7 +90,7 @@ test("a second MediaElementSource on the same video reports conflict", async () 
   const { window, document } = createDom(playerHtml);
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   video._adCaptured = true;
   let conflict = false;
@@ -107,7 +107,8 @@ test("content script apply posts DSP settings to the page engine", async () => {
   lastWindow = window;
   const AD = loadAD(window);
   store.ad_state = AD.emptyState();
-  runScripts(window, ["page-audio.js", "content.js"]);
+  loadPageAudio(window);
+  runScripts(window, ["content.js"]);
   await sleep(80);
 
   const video = document.querySelector("video");
@@ -121,7 +122,8 @@ test("content script disable does not reload the page", async () => {
   lastWindow = window;
   const AD = loadAD(window);
   store.ad_state = AD.emptyState();
-  runScripts(window, ["page-audio.js", "content.js"]);
+  loadPageAudio(window);
+  runScripts(window, ["content.js"]);
   await sleep(40);
   const video = document.querySelector("video");
   assert.equal(video._adCaptured, true);
@@ -137,7 +139,7 @@ test("apply wires source through EQ, compressors, and destination", async () => 
   const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=1");
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   dispatchApply(window, defaultApply(AD));
   await sleep(20);
@@ -157,7 +159,7 @@ test("disable tears the processing chain down to destination without a second ME
   const { window, document } = createDom(playerHtml);
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   dispatchApply(window, defaultApply(AD));
   await sleep(20);
@@ -177,7 +179,7 @@ test("re-apply reuses the captured MediaElementSource instead of attaching again
   const { window, document } = createDom(playerHtml);
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   let conflict = false;
   window.addEventListener("ad-audio-evt", (event) => {
@@ -198,7 +200,7 @@ test("createMediaElementSource is exclusive after Audio Defender captures the el
   const { window, document } = createDom(playerHtml);
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const video = document.querySelector("video");
   dispatchApply(window, defaultApply(AD));
   await sleep(20);
@@ -215,7 +217,7 @@ test("replacing the media element recaptures the new node and bypasses the old g
   const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=1");
   lastWindow = window;
   const AD = loadAD(window);
-  runScripts(window, ["page-audio.js"]);
+  loadPageAudio(window);
   const oldVideo = document.querySelector("video");
   dispatchApply(window, defaultApply(AD));
   await sleep(20);
@@ -248,7 +250,8 @@ test("SPA navigation reapplies the matching per-channel setup", async () => {
   window.addEventListener("ad-audio-cmd", (event) => {
     if (event.detail && event.detail.type === "apply") applies.push(event.detail);
   });
-  runScripts(window, ["page-audio.js", "content.js"]);
+  loadPageAudio(window);
+  runScripts(window, ["content.js"]);
   await sleep(80);
   assert.equal(applies.at(-1).settings.activePreset, "leveler");
   assert.equal(AD.overrideKey(window.AD.engine.getChannel()), "twitch:shroud");
