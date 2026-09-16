@@ -202,7 +202,17 @@ Combined with P0-2, X is the worst site: one shared setup **and** the wrong vide
 
 ---
 
-### P1-8 — Content-script `postMessage` / `CustomEvent` bus is spoofable
+### P1-8 — Capturing while `AudioContext` is `suspended` can mute autoplay
+
+`createMediaElementSource` reroutes element output into the context. At `document_idle`, `applyNow()` → `new AudioContext()` (often `suspended`) → `attachBest()` captures immediately (`page-audio.js:36-47`, `149-176`; `content.js:140`). `resume()` on `play` / pointer is best-effort (`page-audio.js:408-413`). Autoplay is not a user gesture, so `resume()` fails and the user hears **silence** until a click — native playback cannot fall back because MES already owns the element.
+
+`test/helpers.js` `FakeAudioContext` starts `running`, so CI cannot catch this.
+
+**Fix direction:** do not call `createMediaElementSource` until `ctx.state === "running"`. Keep native output until then.
+
+---
+
+### P1-9 — Content-script `postMessage` / `CustomEvent` bus is spoofable
 
 `page-audio.js` and `content.js` live in the **same isolated world** (`manifest.json` content_scripts, no `"world": "MAIN"`; `test/manifest.test.js` asserts this). The `window.postMessage(..., "*")` + `ad-audio-cmd` / `ad-audio-evt` bridge is unnecessary and visible to the page.
 
@@ -258,30 +268,30 @@ Existing tests lock in P1-1 and P1-7.
 1. **P0-1** — gate `refreshChannel` / `saveState` on init; never persist empty state.
 2. **P0-3 / P1-5** — stop 200ms overlay polling; debounce identity; ignore self `onChanged`.
 3. **P0-2 / P1-2 / P1-1** — retarget + teardown graphs; define disable vs release.
-4. **P1-4 / P1-7** — canonical channel keys; X product decision.
-5. **P1-3 / P1-6 / P1-8** — frames, CSP, messaging.
+4. **P1-4 / P1-7 / P1-8** — canonical channel keys; X product decision; don’t capture until AudioContext is running.
+5. **P1-3 / P1-6 / P1-9** — frames, CSP, messaging.
 6. Tests for the above before more DSP work.
 
 ---
 
 ## Issue index
 
-Filled in after GitHub issues are opened.
+Canonical open issues (duplicates from a parallel review pass were closed as duplicates):
 
 | Pri | Finding | Issue |
 | --- | --- | --- |
-| P0 | Overlay init race wipes storage | _pending_ |
-| P0 | MES never retargets connected media | _pending_ |
-| P0 | Channel-key flicker + overlay poll clobbers state | _pending_ |
-| P1 | Disable does not release MES | _pending_ |
-| P1 | Graph leak on SPA remount | _pending_ |
-| P1 | `all_frames` + sendMessage first-wins | _pending_ |
-| P1 | Non-canonical YouTube/Kick/Twitch keys | _pending_ |
-| P1 | persist / `onChanged` panel clobber | _pending_ |
-| P1 | MV3 inline `onclick` CSP | _pending_ |
-| P1 | X per-channel vs site-wide | _pending_ |
-| P1 | Spoofable page message bus | _pending_ |
-| P2 | Dead meter bands / inconsistent LUFS | _pending_ |
-| P2 | Sticky captured + SW meters | _pending_ |
-| P2 | Overlay host CSS + listener leak | _pending_ |
-| P2 | Parser leftovers + test gap | _pending_ |
+| P0 | Overlay init race wipes storage | https://github.com/luxus/audio-defender/issues/5 |
+| P0 | MES never retargets connected media | https://github.com/luxus/audio-defender/issues/6 |
+| P0 | Channel-key flicker + overlay poll clobbers state | https://github.com/luxus/audio-defender/issues/7 |
+| P1 | Disable does not release MES | https://github.com/luxus/audio-defender/issues/11 |
+| P1 | YouTube override keys split | https://github.com/luxus/audio-defender/issues/12 |
+| P1 | `all_frames` + sendMessage first-wins | https://github.com/luxus/audio-defender/issues/13 |
+| P1 | Suspended AudioContext mutes autoplay | https://github.com/luxus/audio-defender/issues/14 |
+| P1 | Graph leak on SPA remount | https://github.com/luxus/audio-defender/issues/16 |
+| P1 | persist / `onChanged` panel clobber | https://github.com/luxus/audio-defender/issues/19 |
+| P1 | MV3 inline `onclick` CSP | https://github.com/luxus/audio-defender/issues/20 |
+| P1 | X per-channel vs site-wide | https://github.com/luxus/audio-defender/issues/21 |
+| P1 | Spoofable page message bus | https://github.com/luxus/audio-defender/issues/22 |
+| P2 | Overlay fights player chrome | https://github.com/luxus/audio-defender/issues/24 |
+| P2 | SW meters + all-frame polling | https://github.com/luxus/audio-defender/issues/25 |
+| P2 | Structural debt / dead meter bands / test gap | https://github.com/luxus/audio-defender/issues/26 |
