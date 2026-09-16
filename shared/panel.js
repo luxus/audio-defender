@@ -233,6 +233,7 @@ AD.bindPanel = function (root, options) {
   }
 
   function refreshChannel() {
+    if (!hydrated) return false;
     const channel = currentChannel();
     const nextKey = AD.overrideKey(channel);
     const prevKey = AD.overrideKey(ui.channel);
@@ -256,8 +257,10 @@ AD.bindPanel = function (root, options) {
 
   let persistTimer = 0;
   let writing = false;
+  let hydrated = false;
 
   function persist(fullState) {
+    if (!hydrated) return;
     flushToState();
     if (fullState) syncControls();
     else {
@@ -447,6 +450,7 @@ AD.bindPanel = function (root, options) {
     }
     applyResolved();
     syncControls();
+    hydrated = true;
   }
 
   const meterTimer = setInterval(async () => {
@@ -478,6 +482,7 @@ AD.bindPanel = function (root, options) {
 
   init().catch((err) => {
     console.error(err);
+    hydrated = true;
     syncControls();
   });
 

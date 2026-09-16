@@ -87,6 +87,30 @@ test("hash and bare ids both resolve after bind", async () => {
   panel.destroy();
 });
 
+test("refreshChannel before init must not wipe stored presets and overrides", async () => {
+  const { window, document, store } = createDom(popupHtml, "https://www.twitch.tv/shroud");
+  lastWindow = window;
+  const AD = loadAD(window);
+  store.ad_state = AD.emptyState();
+  store.ad_state.global = AD.cloneSettings(AD.PRESETS.voice);
+  store.ad_state.channelSettings["twitch:shroud"] = AD.cloneSettings(AD.PRESETS.night);
+  store.ad_state.customPresets.Gym = AD.cloneSettings(AD.PRESETS.max);
+  store.ad_state.customPresets.Gym.activePreset = "custom:Gym";
+
+  const panel = AD.bindPanel(document, {
+    mode: "overlay",
+    getChannel: () => ({ site: "twitch", id: "shroud", label: "shroud" }),
+    getMeter: () => ({ rms: 0, bands: [0, 0, 0] })
+  });
+  panel.refreshChannel();
+  await sleep(50);
+
+  assert.equal(store.ad_state.global.activePreset, "voice");
+  assert.equal(store.ad_state.channelSettings["twitch:shroud"].activePreset, "night");
+  assert.ok(store.ad_state.customPresets.Gym);
+  panel.destroy();
+});
+
 test("Overwrite writes a channel setup; Default deletes it", async () => {
   const { window, document, store } = createDom(popupHtml, "https://www.twitch.tv/shroud");
   lastWindow = window;
