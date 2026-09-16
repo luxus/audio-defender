@@ -76,3 +76,18 @@ test("saveState round-trips isolated per-channel setups under ad_state", async (
   assert.equal(AD.resolveSettings(loaded, { site: "x", id: "anyone" }).settings.activePreset, "cinema");
   assert.equal(AD.resolveSettings(loaded, { site: "youtube", id: "other" }).scope, "default");
 });
+
+test("YouTube resolveSettings matches handle or UC alias for the same channel", () => {
+  const AD = ad();
+  const state = AD.emptyState();
+  state.channelSettings["youtube:UC123abcdefghijklmnopqrstuv"] = AD.cloneSettings(AD.PRESETS.night);
+  const channel = {
+    site: "youtube",
+    id: "mkbhd",
+    label: "@mkbhd",
+    aliases: ["youtube:mkbhd", "youtube:UC123abcdefghijklmnopqrstuv"]
+  };
+  const resolved = AD.resolveSettings(state, channel);
+  assert.equal(resolved.scope, "override");
+  assert.equal(resolved.settings.activePreset, "night");
+});

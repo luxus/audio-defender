@@ -21,7 +21,7 @@
       bands: meter.bands,
       conflict: Boolean(PA.processor && PA.processor.conflict),
       tainted: Boolean(PA.processor && PA.processor.tainted),
-      captured: Boolean(PA.processor && PA.processor.captured),
+      captured: Boolean(PA.processor && PA.processor.captured && PA.currentEl && PA.currentEl.isConnected),
       ctxState: PA.processor && PA.processor.ctx ? PA.processor.ctx.state : "none"
     });
   }

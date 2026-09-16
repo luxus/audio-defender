@@ -27,15 +27,20 @@
     document.addEventListener("pointerdown", unlock, true);
     document.addEventListener("keydown", unlock, true);
 
+    function mediaChanged() {
+      if (!PA.processor || !PA.currentEl || !PA.currentEl.isConnected) return true;
+      return PA.processor.pickMedia() !== PA.currentEl;
+    }
+
     const observer = new MutationObserver(() => {
-      if (PA.armed && PA.enabled && (!PA.processor || !PA.processor.captured || (PA.currentEl && !PA.currentEl.isConnected))) scan();
+      if (PA.armed && PA.enabled && mediaChanged()) scan();
     });
     if (document.documentElement) {
       observer.observe(document.documentElement, { childList: true, subtree: true });
     }
 
     setInterval(() => {
-      if (PA.armed && PA.enabled && (!PA.processor || !PA.processor.captured || (PA.currentEl && !PA.currentEl.isConnected))) scan();
+      if (PA.armed && PA.enabled && mediaChanged()) scan();
       PA.notifyMeter();
     }, 90);
   }

@@ -56,6 +56,16 @@ AD.pageAudio = AD.pageAudio || {};
     makeGraph(element) {
       const ctx = this.ctx;
       const source = ctx.createMediaElementSource(element);
+      PA.attached.add(element);
+      try {
+        return this.buildGraph(ctx, element, source);
+      } catch (err) {
+        try { source.connect(ctx.destination); } catch (connectErr) {}
+        throw err;
+      }
+    }
+
+    buildGraph(ctx, element, source) {
       const preGain = ctx.createGain();
       const leveler = ctx.createDynamicsCompressor();
       const limiter = ctx.createDynamicsCompressor();
@@ -104,7 +114,6 @@ AD.pageAudio = AD.pageAudio || {};
         ktd: new Float32Array(kAnalyser.fftSize)
       };
       PA.graphs.set(element, graph);
-      PA.attached.add(element);
       source.connect(preGain);
       this.engaged = true;
       return graph;
@@ -216,7 +225,7 @@ AD.pageAudio = AD.pageAudio || {};
 
     getMeter() {
       const empty = { rms: 0, rmsDb: -100, loudDb: -100, grDb: 0, bands: [0, 0, 0] };
-      if (!this.captured || !PA.currentEl) return empty;
+      if (!this.captured || !PA.currentEl || !PA.currentEl.isConnected) return empty;
       const graph = this.graphFor(PA.currentEl);
       if (!graph) return empty;
       try {

@@ -270,3 +270,43 @@ test("SPA navigation reapplies the matching per-channel setup", async () => {
   assert.equal(AD.overrideKey(window.AD.engine.getChannel()), "twitch:shroud");
   assert.equal(applies.at(-1).settings.activePreset, "leveler");
 });
+
+test("still-connected leftover video does not block capturing the new main player", async () => {
+  const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=1");
+  lastWindow = window;
+  const AD = loadAD(window);
+  loadPageAudio(window);
+  const player = document.getElementById("movie_player");
+  const oldVideo = document.querySelector("video");
+  dispatchApply(window, defaultApply(AD));
+  await sleep(20);
+  assert.equal(oldVideo._adCaptured, true);
+
+  oldVideo.className = "";
+  Object.defineProperty(oldVideo, "paused", { configurable: true, get: () => true });
+  const newVideo = document.createElement("video");
+  newVideo.className = "html5-main-video";
+  Object.defineProperty(newVideo, "paused", { configurable: true, get: () => false });
+  player.insertBefore(newVideo, player.firstChild);
+  dispatchApply(window, defaultApply(AD));
+  await sleep(40);
+
+  assert.equal(newVideo._adCaptured, true);
+  assert.equal(newVideo._adMesCalls, 1);
+  assert.equal(oldVideo._adMesCalls, 1);
+  assert.equal(oldVideo._adSource.connections[0].name, "destination");
+  assert.equal(newVideo._adSource.connections[0].name, "gain");
+});
+
+test("InvalidStateError is not retried on later applies", async () => {
+  const { window, document } = createDom(playerHtml);
+  lastWindow = window;
+  const AD = loadAD(window);
+  loadPageAudio(window);
+  const video = document.querySelector("video");
+  video._adCaptured = true;
+  dispatchApply(window, defaultApply(AD));
+  dispatchApply(window, defaultApply(AD));
+  await sleep(40);
+  assert.equal(video._adMesCalls, 1);
+});
