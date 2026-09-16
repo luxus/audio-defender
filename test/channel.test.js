@@ -42,3 +42,21 @@ test("supportedHost matches apex and www hosts", () => {
   assert.equal(AD.supportedHost("https://kick.com/x"), true);
   assert.equal(AD.supportedHost("https://example.com"), false);
 });
+
+test("override keys match site-specific URL parsers", () => {
+  const AD = ad();
+  assert.equal(AD.overrideKey(AD.parseChannel("https://www.twitch.tv/shroud", null)), "twitch:shroud");
+  assert.equal(AD.overrideKey(AD.parseChannel("https://www.twitch.tv/popout/shroud/chat", null)), "twitch:shroud");
+  assert.equal(AD.overrideKey(AD.parseChannel("https://kick.com/xqc", null)), "kick:xqc");
+  assert.equal(AD.overrideKey(AD.parseChannel("https://www.youtube.com/@MKBHD", null)), "youtube:mkbhd");
+  assert.equal(
+    AD.overrideKey(AD.parseChannel("https://www.youtube.com/channel/UCBJycsmduvYEL83R_U4JriQ", null)),
+    "youtube:UCBJycsmduvYEL83R_U4JriQ"
+  );
+  assert.equal(
+    AD.overrideKey(AD.parseChannel("https://www.youtube.com/watch?v=1&ab_channel=MKBHD", null)),
+    "youtube:mkbhd"
+  );
+  assert.equal(AD.overrideKey(AD.parseChannel("https://x.com/jack/status/1", null)), "x");
+  assert.equal(AD.overrideKey(AD.parseChannel("https://twitter.com/home", null)), "x");
+});
