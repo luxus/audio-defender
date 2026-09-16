@@ -9,6 +9,16 @@ afterEach(() => {
   lastWindow = null;
 });
 
+test("overlay double inject keeps a single shield button", async () => {
+  const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  lastWindow = window;
+  loadAD(window);
+  runScripts(window, ["overlay.js", "overlay.js"]);
+  await sleep(40);
+  assert.equal(document.querySelectorAll("#audio-defender-player-btn").length, 1);
+  assert.equal(window.__AD_OVERLAY__, true);
+});
+
 test("overlay places the shield after the YouTube volume panel", async () => {
   const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
   lastWindow = window;

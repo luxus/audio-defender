@@ -1,4 +1,6 @@
 (() => {
+  if (window.__AD_CONTENT__) return;
+  window.__AD_CONTENT__ = true;
   const MSG = "__audioDefender";
   let lastHref = location.href;
   let lastChannelKey = null;
@@ -67,7 +69,7 @@
     }
     if (data.type === "meter") {
       lastMeter = data;
-      if (data.captured) captured = true;
+      captured = Boolean(data.captured);
       try {
         chrome.runtime.sendMessage(meterPayload()).catch(() => {});
       } catch (err) {}

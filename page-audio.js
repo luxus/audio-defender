@@ -6,6 +6,8 @@
   const EQ_FREQS = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
   const attached = new WeakSet();
   const graphs = new WeakMap();
+  const PREFERRED_MEDIA =
+    "video.html5-main-video, video.video-stream, .html5-video-player video, [data-a-target='video-player'] video, .video-player video";
   let processor = null;
   let enabled = true;
   let armed = false;
@@ -54,6 +56,16 @@
     makeGraph(element) {
       const ctx = this.ctx;
       const source = ctx.createMediaElementSource(element);
+      attached.add(element);
+      try {
+        return this.buildGraph(ctx, element, source);
+      } catch (err) {
+        try { source.connect(ctx.destination); } catch (connectErr) {}
+        throw err;
+      }
+    }
+
+    buildGraph(ctx, element, source) {
       const preGain = ctx.createGain();
       const leveler = ctx.createDynamicsCompressor();
       const limiter = ctx.createDynamicsCompressor();
@@ -102,7 +114,6 @@
         ktd: new Float32Array(kAnalyser.fftSize)
       };
       graphs.set(element, graph);
-      attached.add(element);
       source.connect(preGain);
       this.engaged = true;
       return graph;
@@ -123,21 +134,20 @@
     }
 
     pickMedia() {
-      const preferred = document.querySelector(
-        "video.html5-main-video, video.video-stream, .html5-video-player video, [data-a-target='video-player'] video, .video-player video, video"
-      );
-      if (preferred && preferred.isConnected) return preferred;
       let best = null;
-      let score = 0;
+      let score = -1;
       document.querySelectorAll("video, audio").forEach((el) => {
         if (!el.isConnected) return;
         const rect = el.getBoundingClientRect();
-        let s = rect.width * rect.height;
+        let s = Math.max(0, rect.width) * Math.max(0, rect.height);
         if (s <= 0 && el.tagName === "AUDIO") s = 80;
-        if (s <= 0) return;
+        else if (s <= 0) s = el.matches(PREFERRED_MEDIA) ? 10 : 1;
         if (el.muted) s *= 0.1;
         if (el.paused) s *= 0.5;
         if (el.readyState < 2) s *= 0.25;
+        if (el.matches("video.html5-main-video, video.video-stream")) s *= 5;
+        else if (el.matches(PREFERRED_MEDIA)) s *= 3;
+        if (el === currentEl && this.graphFor(el)) s *= 1.05;
         if (s > score) {
           score = s;
           best = el;
@@ -146,13 +156,25 @@
       return best;
     }
 
+    liveGraph(element) {
+      if (!element || !element.isConnected) return null;
+      return this.graphFor(element) || null;
+    }
+
     attachBest() {
       this.resume();
-      if (currentEl && currentEl.isConnected && this.graphFor(currentEl)) {
-        return this.graphFor(currentEl);
-      }
       const el = this.pickMedia();
-      if (!el) return null;
+      if (!el) {
+        if (currentEl && !currentEl.isConnected) {
+          this.bypass(this.graphFor(currentEl));
+          currentEl = null;
+        }
+        return this.liveGraph(currentEl);
+      }
+      if (currentEl === el) {
+        const graph = this.liveGraph(el);
+        if (graph) return graph;
+      }
       this.tainted = false;
       if (currentEl && currentEl !== el) {
         this.bypass(this.graphFor(currentEl));
@@ -167,12 +189,14 @@
           graph = this.makeGraph(el);
           this.conflict = false;
         } catch (err) {
+          attached.add(el);
           if (err && err.name === "InvalidStateError") this.conflict = true;
           return null;
         }
       }
       currentEl = el;
       this.captured = true;
+      this.conflict = false;
       return graph;
     }
 
@@ -268,7 +292,7 @@
 
     getMeter() {
       const empty = { rms: 0, rmsDb: -100, loudDb: -100, grDb: 0, bands: [0, 0, 0] };
-      if (!this.captured || !currentEl) return empty;
+      if (!this.captured || !currentEl || !currentEl.isConnected) return empty;
       const graph = this.graphFor(currentEl);
       if (!graph) return empty;
       try {
@@ -357,7 +381,7 @@
       bands: meter.bands,
       conflict: Boolean(processor && processor.conflict),
       tainted: Boolean(processor && processor.tainted),
-      captured: Boolean(processor && processor.captured),
+      captured: Boolean(processor && processor.captured && currentEl && currentEl.isConnected),
       ctxState: processor && processor.ctx ? processor.ctx.state : "none"
     });
   }
@@ -412,15 +436,20 @@
   document.addEventListener("pointerdown", unlock, true);
   document.addEventListener("keydown", unlock, true);
 
+  function mediaChanged() {
+    if (!processor || !currentEl || !currentEl.isConnected) return true;
+    return processor.pickMedia() !== currentEl;
+  }
+
   const observer = new MutationObserver(() => {
-    if (armed && enabled && (!processor || !processor.captured || (currentEl && !currentEl.isConnected))) scan();
+    if (armed && enabled && mediaChanged()) scan();
   });
   if (document.documentElement) {
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
   setInterval(() => {
-    if (armed && enabled && (!processor || !processor.captured || (currentEl && !currentEl.isConnected))) scan();
+    if (armed && enabled && mediaChanged()) scan();
     notifyMeter();
   }, 90);
 

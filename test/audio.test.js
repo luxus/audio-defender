@@ -102,6 +102,18 @@ test("a second MediaElementSource on the same video reports conflict", async () 
   assert.equal(conflict, true);
 });
 
+test("content script double inject still captures once", async () => {
+  const { window, document, store } = createDom(playerHtml, "https://www.twitch.tv/shroud");
+  lastWindow = window;
+  const AD = loadAD(window);
+  store.ad_state = AD.emptyState();
+  runScripts(window, ["page-audio.js", "content.js", "content.js"]);
+  await sleep(80);
+  const video = document.querySelector("video");
+  assert.equal(video._adMesCalls, 1);
+  assert.equal(window.__AD_CONTENT__, true);
+});
+
 test("content script apply posts DSP settings to the page engine", async () => {
   const { window, document, store } = createDom(playerHtml, "https://www.twitch.tv/shroud");
   lastWindow = window;
@@ -114,6 +126,93 @@ test("content script apply posts DSP settings to the page engine", async () => {
   assert.equal(video._adCaptured, true);
   assert.ok(window.AD.engine);
   assert.equal(typeof window.AD.engine.getMeter, "function");
+});
+
+test("repeat apply reuses the same MediaElementSource", async () => {
+  const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=1");
+  lastWindow = window;
+  const AD = loadAD(window);
+  runScripts(window, ["page-audio.js"]);
+  const video = document.querySelector("video");
+  dispatchApply(window, defaultApply(AD));
+  dispatchApply(window, defaultApply(AD));
+  await sleep(20);
+  assert.equal(video._adMesCalls, 1);
+  assert.equal(video._adSource.connections[0].name, "gain");
+});
+
+test("second page-audio inject does not capture the same video again", async () => {
+  const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=1");
+  lastWindow = window;
+  const AD = loadAD(window);
+  runScripts(window, ["page-audio.js"]);
+  const video = document.querySelector("video");
+  dispatchApply(window, defaultApply(AD));
+  await sleep(20);
+  runScripts(window, ["page-audio.js"]);
+  dispatchApply(window, defaultApply(AD));
+  await sleep(20);
+  assert.equal(video._adMesCalls, 1);
+  assert.equal(video._adSource.connections[0].name, "gain");
+});
+
+test("SPA remount captures the new player and bypasses the old source", async () => {
+  const { window, document } = createDom(playerHtml, "https://www.youtube.com/watch?v=1");
+  lastWindow = window;
+  const AD = loadAD(window);
+  runScripts(window, ["page-audio.js"]);
+  const player = document.getElementById("movie_player");
+  const oldVideo = document.querySelector("video");
+  dispatchApply(window, defaultApply(AD));
+  await sleep(20);
+  assert.equal(oldVideo._adCaptured, true);
+
+  oldVideo.className = "";
+  Object.defineProperty(oldVideo, "paused", { configurable: true, get: () => true });
+  const newVideo = document.createElement("video");
+  newVideo.className = "html5-main-video";
+  Object.defineProperty(newVideo, "paused", { configurable: true, get: () => false });
+  player.insertBefore(newVideo, player.firstChild);
+
+  dispatchApply(window, defaultApply(AD));
+  await sleep(40);
+
+  assert.equal(newVideo._adCaptured, true, "new main video must be captured after remount");
+  assert.equal(newVideo._adMesCalls, 1);
+  assert.equal(oldVideo._adMesCalls, 1, "old video must not be recaptured");
+  assert.equal(oldVideo._adSource.connections[0].name, "destination");
+  assert.equal(newVideo._adSource.connections[0].name, "gain");
+});
+
+test("InvalidStateError is not retried on later applies", async () => {
+  const { window, document } = createDom(playerHtml);
+  lastWindow = window;
+  const AD = loadAD(window);
+  runScripts(window, ["page-audio.js"]);
+  const video = document.querySelector("video");
+  video._adCaptured = true;
+  dispatchApply(window, defaultApply(AD));
+  dispatchApply(window, defaultApply(AD));
+  await sleep(40);
+  assert.equal(video._adMesCalls, 1);
+});
+
+test("disconnected currentEl reports not captured", async () => {
+  const { window, document } = createDom(playerHtml);
+  lastWindow = window;
+  const AD = loadAD(window);
+  runScripts(window, ["page-audio.js"]);
+  const video = document.querySelector("video");
+  let captured = true;
+  window.addEventListener("ad-audio-evt", (event) => {
+    if (event.detail && event.detail.type === "meter") captured = Boolean(event.detail.captured);
+  });
+  dispatchApply(window, defaultApply(AD));
+  await sleep(20);
+  video.remove();
+  dispatchApply(window, defaultApply(AD));
+  await sleep(40);
+  assert.equal(captured, false);
 });
 
 test("content script disable does not reload the page", async () => {

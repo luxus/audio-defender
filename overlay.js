@@ -1,4 +1,6 @@
 (() => {
+  if (window.__AD_OVERLAY__) return;
+  window.__AD_OVERLAY__ = true;
   const BUTTON_ID = "audio-defender-player-btn";
   const PANEL_ID = "audio-defender-player-panel";
   let bound = null;
