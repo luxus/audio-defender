@@ -53,7 +53,23 @@
         "*://twitter.com/*",
         "*://*.twitter.com/*"
       ],
-      "js": ["shared/presets.js", "shared/channel.js", "shared/storage.js", "shared/panel.js", "page-audio.js", "content.js", "overlay.js"],
+      "js": [
+        "shared/presets.js",
+        "shared/channel.js",
+        "shared/storage.js",
+        "shared/panel.js",
+        "page-audio/graph.js",
+        "page-audio/media.js",
+        "page-audio/messaging.js",
+        "page-audio/spa.js",
+        "page-audio.js",
+        "content.js",
+        "overlay/state.js",
+        "overlay/helpers.js",
+        "overlay/messaging.js",
+        "overlay/ui.js",
+        "overlay.js"
+      ],
       "run_at": "document_idle",
       "all_frames": true
     }

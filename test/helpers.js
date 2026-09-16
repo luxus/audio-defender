@@ -179,6 +179,23 @@ function runScripts(window, files) {
   });
 }
 
+function contentScriptFiles() {
+  return JSON.parse(read("manifest.json")).content_scripts[0].js;
+}
+
+function filesFor(entry) {
+  const prefix = entry.replace(/\.js$/, "");
+  return contentScriptFiles().filter((file) => file === entry || file.startsWith(prefix + "/"));
+}
+
+function pageAudioScripts() {
+  return filesFor("page-audio.js");
+}
+
+function overlayScripts() {
+  return filesFor("overlay.js");
+}
+
 function loadAD(window) {
   runScripts(window, [
     "shared/presets.js",
@@ -187,6 +204,14 @@ function loadAD(window) {
     "shared/panel.js"
   ]);
   return window.AD;
+}
+
+function loadPageAudio(window) {
+  runScripts(window, pageAudioScripts());
+}
+
+function loadOverlay(window) {
+  runScripts(window, overlayScripts());
 }
 
 function playerHtml() {
@@ -256,7 +281,12 @@ module.exports = {
   FakeAudioContext,
   createDom,
   runScripts,
+  contentScriptFiles,
+  pageAudioScripts,
+  overlayScripts,
   loadAD,
+  loadPageAudio,
+  loadOverlay,
   playerHtml,
   twitchPlayerHtml,
   xPlayerHtml,
