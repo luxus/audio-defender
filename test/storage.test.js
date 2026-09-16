@@ -40,3 +40,39 @@ test("normalizeState treats missing enabled as on", () => {
   assert.equal(state.enabled, true);
   assert.equal(state.global.activePreset, "voice");
 });
+
+test("storage key is ad_state and override keys are per channel except X", () => {
+  const AD = ad();
+  assert.equal(AD.STORAGE_KEY, "ad_state");
+  assert.equal(AD.overrideKey({ site: "twitch", id: "shroud", label: "shroud" }), "twitch:shroud");
+  assert.equal(AD.overrideKey({ site: "youtube", id: "mkbhd", label: "@mkbhd" }), "youtube:mkbhd");
+  assert.equal(AD.overrideKey({ site: "kick", id: "xqc", label: "xqc" }), "kick:xqc");
+  assert.equal(AD.overrideKey({ site: "x", id: "jack", label: "@jack" }), "x");
+  assert.equal(
+    AD.channelKey({ site: "twitch", id: "shroud" }),
+    AD.overrideKey({ site: "twitch", id: "shroud" })
+  );
+});
+
+test("saveState round-trips isolated per-channel setups under ad_state", async () => {
+  const { window, store } = createDom("<!doctype html><body></body>");
+  const AD = loadAD(window);
+  const state = AD.emptyState();
+  state.channelSettings["twitch:shroud"] = AD.cloneSettings(AD.PRESETS.max);
+  state.channelSettings["kick:xqc"] = AD.cloneSettings(AD.PRESETS.night);
+  state.channelSettings["youtube:mkbhd"] = AD.cloneSettings(AD.PRESETS.voice);
+  state.channelSettings.x = AD.cloneSettings(AD.PRESETS.cinema);
+  await AD.saveState(state);
+
+  assert.deepEqual(Object.keys(store), ["ad_state"]);
+  const loaded = await AD.getState();
+  assert.equal(loaded.channelSettings["twitch:shroud"].activePreset, "max");
+  assert.equal(loaded.channelSettings["kick:xqc"].activePreset, "night");
+  assert.equal(loaded.channelSettings["youtube:mkbhd"].activePreset, "voice");
+  assert.equal(loaded.channelSettings.x.activePreset, "cinema");
+  assert.equal(AD.resolveSettings(loaded, { site: "twitch", id: "shroud" }).scope, "override");
+  assert.equal(AD.resolveSettings(loaded, { site: "twitch", id: "other" }).scope, "default");
+  assert.equal(AD.resolveSettings(loaded, { site: "kick", id: "xqc" }).settings.activePreset, "night");
+  assert.equal(AD.resolveSettings(loaded, { site: "x", id: "anyone" }).settings.activePreset, "cinema");
+  assert.equal(AD.resolveSettings(loaded, { site: "youtube", id: "other" }).scope, "default");
+});

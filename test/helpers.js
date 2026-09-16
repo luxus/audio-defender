@@ -109,6 +109,7 @@ function FakeAudioContext() {
   this.createAnalyser = () => fakeAudioNode("analyser");
   this.createBiquadFilter = () => fakeAudioNode("filter");
   this.createMediaElementSource = (el) => {
+    el._adMesCalls = (el._adMesCalls || 0) + 1;
     if (el._adCaptured) {
       const err = new Error("already captured");
       err.name = "InvalidStateError";
