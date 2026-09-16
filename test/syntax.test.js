@@ -42,3 +42,14 @@ test("selector helper must not double-hash ids", () => {
   const panel = read("shared/panel.js");
   assert.match(panel, /id\.charAt\(0\) === "#"/);
 });
+
+test("service worker importScripts shared modules", () => {
+  const background = read("background.js");
+  assert.match(background, /importScripts\("shared\/presets\.js", "shared\/channel\.js", "shared\/storage\.js"\)/);
+});
+
+test("popup.html loads popup.js and popup.css", () => {
+  const html = read("popup.html");
+  assert.match(html, /href="popup\.css"/);
+  assert.match(html, /src="popup\.js"/);
+});
