@@ -225,6 +225,13 @@ AD.bindPanel = function (root, options) {
     ui.scope = resolved.scope;
   }
 
+  function sameOverrideChannel(a, b) {
+    const keysA = AD.overrideKeys(a);
+    const keysB = AD.overrideKeys(b);
+    if (!keysA.length || !keysB.length) return false;
+    return keysA.some((key) => keysB.indexOf(key) !== -1);
+  }
+
   function currentChannel() {
     if (options.getChannel) return options.getChannel();
     const href = typeof location !== "undefined" ? location.href : "";
@@ -238,7 +245,8 @@ AD.bindPanel = function (root, options) {
     const prevKey = AD.overrideKey(ui.channel);
     const nextPlace = AD.overridePlace(channel);
     const prevPlace = AD.overridePlace(ui.channel);
-    if (nextKey === prevKey) {
+    const sameAlias = sameOverrideChannel(channel, ui.channel);
+    if (nextKey === prevKey || sameAlias) {
       ui.channel = channel;
       if (nextPlace !== prevPlace) renderScopeHelp();
       return false;

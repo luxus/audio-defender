@@ -7,6 +7,43 @@ function ad() {
   return loadAD(window);
 }
 
+test("YouTube watch DOM prefers @handle over /channel/ id and ab_channel", () => {
+  const html = `<!doctype html><body>
+    <ytd-video-owner-renderer>
+      <ytd-channel-name><a href="/channel/UC123abcdefghijklmnopqrstuv">MKBHD</a></ytd-channel-name>
+      <a href="/@mkbhd">MKBHD</a>
+    </ytd-video-owner-renderer>
+    <a class="ytp-title-channel-logo" href="/channel/UC123abcdefghijklmnopqrstuv"></a>
+  </body>`;
+  const { window, document } = createDom(
+    html,
+    "https://www.youtube.com/watch?v=1&ab_channel=Marques%20Brownlee"
+  );
+  const AD = loadAD(window);
+  const channel = AD.parseChannel(window.location.href, document);
+  assert.equal(channel.id, "mkbhd");
+  assert.equal(AD.overrideKey(channel), "youtube:mkbhd");
+  assert.ok(channel.aliases.includes("youtube:UC123abcdefghijklmnopqrstuv"));
+  assert.ok(channel.aliases.includes("youtube:marques brownlee"));
+  assert.equal(
+    AD.overrideKey(AD.parseChannel("https://www.youtube.com/watch?v=1", document)),
+    "youtube:mkbhd"
+  );
+});
+
+test("YouTube /@handle path stays a handle even if DOM has a UC id", () => {
+  const html = `<!doctype html><body>
+    <ytd-video-owner-renderer>
+      <ytd-channel-name><a href="/channel/UC123abcdefghijklmnopqrstuv">MKBHD</a></ytd-channel-name>
+    </ytd-video-owner-renderer>
+  </body>`;
+  const { window, document } = createDom(html, "https://www.youtube.com/@mkbhd");
+  const AD = loadAD(window);
+  const channel = AD.parseChannel(window.location.href, document);
+  assert.equal(channel.id, "mkbhd");
+  assert.equal(AD.overrideKey(channel), "youtube:mkbhd");
+});
+
 test("parses Twitch, Kick, YouTube, and X channel URLs", () => {
   const AD = ad();
   const twitch = AD.parseChannel("https://www.twitch.tv/thebausffs", null);

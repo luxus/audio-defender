@@ -151,6 +151,43 @@ test("switching Twitch channels updates the overwrite target and keeps the previ
   panel.destroy();
 });
 
+test("YouTube handle hydration keeps an existing UC override", async () => {
+  const { window, document, store } = createDom(popupHtml, "https://www.youtube.com/watch?v=1");
+  lastWindow = window;
+  const AD = loadAD(window);
+  let channel = {
+    site: "youtube",
+    id: "UC123abcdefghijklmnopqrstuv",
+    label: "MKBHD",
+    aliases: ["youtube:UC123abcdefghijklmnopqrstuv"]
+  };
+  const panel = AD.bindPanel(document, {
+    mode: "overlay",
+    getChannel: () => channel,
+    getMeter: () => ({ rms: 0, bands: [0, 0, 0] })
+  });
+  await sleep(40);
+  document.querySelector("#scopeOverwrite").click();
+  await sleep(20);
+  [...document.querySelectorAll("#presets button.chip")].find((el) => el.textContent === "Max").click();
+  await sleep(30);
+  assert.equal(store.ad_state.channelSettings["youtube:UC123abcdefghijklmnopqrstuv"].activePreset, "max");
+
+  channel = {
+    site: "youtube",
+    id: "mkbhd",
+    label: "@mkbhd",
+    aliases: ["youtube:mkbhd", "youtube:UC123abcdefghijklmnopqrstuv"]
+  };
+  panel.refreshChannel();
+  await sleep(30);
+
+  assert.equal(store.ad_state.channelSettings["youtube:UC123abcdefghijklmnopqrstuv"].activePreset, "max");
+  assert.equal(store.ad_state.global.activePreset, "leveler");
+  assert.equal(document.querySelector("#scopeOverwrite").classList.contains("active"), true);
+  panel.destroy();
+});
+
 test("X overwrite stores one site-wide setup", async () => {
   const { window, document, store } = createDom(popupHtml, "https://x.com/home");
   lastWindow = window;

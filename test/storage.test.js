@@ -15,6 +15,25 @@ test("empty state is enabled with Leveler global settings", () => {
   assert.equal(Object.keys(state.channelSettings).length, 0);
 });
 
+test("YouTube resolveSettings matches handle or UC alias for the same channel", () => {
+  const AD = ad();
+  const state = AD.emptyState();
+  state.channelSettings["youtube:UC123abcdefghijklmnopqrstuv"] = AD.cloneSettings(AD.PRESETS.night);
+  const channel = {
+    site: "youtube",
+    id: "mkbhd",
+    label: "@mkbhd",
+    aliases: ["youtube:mkbhd", "youtube:UC123abcdefghijklmnopqrstuv"]
+  };
+  const resolved = AD.resolveSettings(state, channel);
+  assert.equal(resolved.scope, "override");
+  assert.equal(resolved.settings.activePreset, "night");
+  assert.equal(
+    AD.resolveSettings(state, { site: "youtube", id: "other", label: "@other" }).scope,
+    "default"
+  );
+});
+
 test("resolveSettings prefers a per-channel override", () => {
   const AD = ad();
   const state = AD.emptyState();

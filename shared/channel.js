@@ -93,6 +93,21 @@ AD.overrideKey = function (channel) {
   return channel.site + ":" + channel.id;
 };
 
+AD.overrideKeys = function (channel) {
+  var keys = [];
+  var seen = {};
+  function add(key) {
+    if (!key || seen[key]) return;
+    seen[key] = 1;
+    keys.push(key);
+  }
+  add(AD.overrideKey(channel));
+  if (channel && Array.isArray(channel.aliases)) {
+    channel.aliases.forEach(add);
+  }
+  return keys;
+};
+
 AD.overridePlace = function (channel) {
   if (!channel) return "";
   if (channel.site === "x") return "X.com";
@@ -182,24 +197,23 @@ function parseKick(url, doc) {
 function parseYouTube(url, doc) {
   var parts = pathParts(url.pathname);
   var first = parts[0] || "";
+  var candidates = [];
 
   if (first.startsWith("@")) {
     var handle = first.slice(1);
-    return makeChannel("youtube", handle.toLowerCase(), "@" + handle);
-  }
-  if (first === "channel" && parts[1]) {
-    return makeChannel("youtube", parts[1], youtubeLabel(doc, parts[1]));
-  }
-  if ((first === "c" || first === "user") && parts[1]) {
-    return makeChannel("youtube", parts[1].toLowerCase(), parts[1]);
+    candidates.push(makeChannel("youtube", handle.toLowerCase(), "@" + handle, "handle"));
+  } else if (first === "channel" && parts[1]) {
+    candidates.push(makeChannel("youtube", parts[1], youtubeLabel(doc, parts[1]), "uc"));
+  } else if ((first === "c" || first === "user") && parts[1]) {
+    candidates.push(makeChannel("youtube", parts[1].toLowerCase(), parts[1], "custom"));
   }
 
   var ab = url.searchParams.get("ab_channel");
   if (ab) {
-    return makeChannel("youtube", ab.toLowerCase(), ab);
+    candidates.push(makeChannel("youtube", ab.toLowerCase(), ab, "ab"));
   }
 
-  return youtubeFromDom(doc);
+  return pickYoutubeChannel(candidates.concat(youtubeFromDom(doc)));
 }
 
 function parseX(url, doc) {
@@ -207,7 +221,7 @@ function parseX(url, doc) {
 }
 
 function youtubeFromDom(doc) {
-  if (!doc) return null;
+  if (!doc) return [];
   var selectors = [
     "ytd-video-owner-renderer ytd-channel-name a",
     "#owner ytd-channel-name a",
@@ -219,15 +233,53 @@ function youtubeFromDom(doc) {
     "span[itemprop='author'] link[itemprop='url']",
     "ytd-video-owner-renderer a[href^='/channel/']"
   ];
+  var found = [];
   var i;
+  var j;
   for (i = 0; i < selectors.length; i++) {
-    var el = doc.querySelector(selectors[i]);
-    if (!el) continue;
-    var href = el.getAttribute("href") || el.getAttribute("content") || "";
-    var parsed = youtubeHref(href, textOf(el));
-    if (parsed) return parsed;
+    var els = doc.querySelectorAll(selectors[i]);
+    for (j = 0; j < els.length; j++) {
+      var el = els[j];
+      var href = el.getAttribute("href") || el.getAttribute("content") || "";
+      var parsed = youtubeHref(href, textOf(el));
+      if (parsed) found.push(parsed);
+    }
   }
-  return null;
+  return found;
+}
+
+function youtubeRank(channel) {
+  if (!channel) return 99;
+  if (channel.kind === "handle") return 0;
+  if (channel.kind === "uc") return 1;
+  if (channel.kind === "custom") return 2;
+  if (channel.kind === "ab") return 3;
+  return 4;
+}
+
+function pickYoutubeChannel(candidates) {
+  var best = null;
+  var bestRank = 99;
+  var aliases = [];
+  var seen = {};
+  var i;
+  for (i = 0; i < candidates.length; i++) {
+    var ch = candidates[i];
+    if (!ch || !ch.id) continue;
+    var key = "youtube:" + ch.id;
+    if (!seen[key]) {
+      seen[key] = 1;
+      aliases.push(key);
+    }
+    var rank = youtubeRank(ch);
+    if (rank < bestRank) {
+      best = ch;
+      bestRank = rank;
+    }
+  }
+  if (!best) return null;
+  best.aliases = aliases;
+  return best;
 }
 
 function youtubeHref(href, label) {
@@ -239,13 +291,13 @@ function youtubeHref(href, label) {
     if (!parts.length) return null;
     if (parts[0].startsWith("@")) {
       var handle = parts[0].slice(1);
-      return makeChannel("youtube", handle.toLowerCase(), label || "@" + handle);
+      return makeChannel("youtube", handle.toLowerCase(), label || "@" + handle, "handle");
     }
     if (parts[0] === "channel" && parts[1]) {
-      return makeChannel("youtube", parts[1], label || parts[1]);
+      return makeChannel("youtube", parts[1], label || parts[1], "uc");
     }
     if ((parts[0] === "c" || parts[0] === "user") && parts[1]) {
-      return makeChannel("youtube", parts[1].toLowerCase(), label || parts[1]);
+      return makeChannel("youtube", parts[1].toLowerCase(), label || parts[1], "custom");
     }
   } catch (err) {
     return null;
@@ -290,7 +342,9 @@ function textOf(el) {
   return el && el.textContent ? el.textContent.trim() : "";
 }
 
-function makeChannel(site, id, label) {
+function makeChannel(site, id, label, kind) {
   if (!id) return null;
-  return { site: site, id: id, label: label || id };
+  var channel = { site: site, id: id, label: label || id };
+  if (kind) channel.kind = kind;
+  return channel;
 }
